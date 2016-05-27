@@ -1,0 +1,45 @@
+<html>
+
+<head>
+
+    <style type="text/css">
+
+    </style>
+</head>
+<body>
+
+<pre>
+<label>简单自动处理</label>
+     {code:0,result:[{what:"xxx",how:{porterPrefix:"可选",tiedFun:'可选',...}]}}
+</pre>
+
+<pre>
+<label>简单响应处理，SimpleResponseDealt</label>
+     {what:"SRD",how:{...}}
+     以下为how的具体内容,desc表示失败的描述，基于用户角度的。
+    1.增:{type:0,rs:boolean,desc:String}.rs表示是否成功
+    2.删:{type:1,rs:boolean,desc:String}.rs表示是否成功
+    3.改:{type:2,rs:boolean,desc:String}.rs表示是否成功
+    4.查:{type:3,rs:boolean,desc:String,as:[]}.rs表示是否成功;as查询的结果，为json数组
+</pre>
+
+<pre>
+    <label>简单设置客户端的内容:SimpleSetDealt</label>
+    {what:"SSD",how:{sets:[]}}
+    以下为设置的格式
+    1.设置value,{attrEnum:VALUE,value:"...",tiedFun:"...",varName:"..."}
+    2.设置enable,{attrEnum:ENABLE,value:true/false,tiedFun:"...",varName:"..."}
+    3.设置visible,{attrEnum:VISIBLE,value:true/false,tiedFun:"...",varName:"..."}
+</pre>
+
+<pre>
+    <label>UI:SimpleUIDealt</label>
+    {what:"UI",how:{uiFun:"...",content:...}}
+    以下为设置的格式
+    1.uiFun=alert,content=[{title,content}]
+    2.uiFun=invoke,tiedFun:'',method:"可选，默认为GET",params:{...}
+</pre>
+
+</body>
+
+</html>
