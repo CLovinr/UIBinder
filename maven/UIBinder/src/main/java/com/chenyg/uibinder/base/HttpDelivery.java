@@ -7,9 +7,8 @@ import com.chenyg.wporter.base.AppValues;
 import com.chenyg.wporter.base.JResponse;
 import com.chenyg.wporter.base.SimpleAppValues;
 import com.chenyg.wporter.log.LogUtil;
-import org.apache.http.client.CookieStore;
-import org.apache.http.client.HttpClient;
-import org.apache.http.impl.client.BasicCookieStore;
+import com.squareup.okhttp.OkHttpClient;
+
 
 import java.lang.annotation.*;
 import java.lang.reflect.Method;
@@ -94,16 +93,16 @@ public class HttpDelivery
     }
 
     private String urlPrefix;
-    private HttpClient httpClient;
+    private OkHttpClient okHttpClient;
 
     /**
-     * @param urlPrefix  转发的目的地的地址前缀
-     * @param httpClient
+     * @param urlPrefix    转发的目的地的地址前缀
+     * @param okHttpClient
      */
-    public HttpDelivery(String urlPrefix, HttpClient httpClient)
+    public HttpDelivery(String urlPrefix, OkHttpClient okHttpClient)
     {
         this.urlPrefix = urlPrefix;
-        this.httpClient = httpClient;
+        this.okHttpClient = okHttpClient;
     }
 
     public String getUrlPrefix()
@@ -126,9 +125,9 @@ public class HttpDelivery
      * @return
      * @throws DeliveryException
      */
-    public JResponse delivery(HttpMethod httpMethod, WPObject wpObject) throws DeliveryException
+    public JResponse delivery(HttpMethod httpMethod, WPObject wpObject, JRCallback jrCallback) throws DeliveryException
     {
-        return _delivery(httpMethod, wpObject, 1, null);
+        return _delivery(httpMethod, wpObject, 1, null, jrCallback);
     }
 
 
@@ -143,18 +142,19 @@ public class HttpDelivery
      * @throws DeliveryException
      */
     public JResponse delivery(HttpMethod httpMethod, WPObject wpObject, String porterPrefix,
-            String tiedFun) throws DeliveryException
+            String tiedFun, JRCallback jrCallback) throws DeliveryException
     {
         JResponse jr;
         String url = urlPrefix + porterPrefix + tiedFun;
-        jr = HttpUtil.requestWPorter(wpObject, httpMethod, httpClient, url);
+        jr = HttpUtil.requestWPorter(wpObject, httpMethod, okHttpClient, url, jrCallback);
         return jr;
     }
 
     public JResponse delivery(HttpMethod httpMethod, AppValues appValues, String porterPrefix,
-            String tiedFun) throws DeliveryException
+            String tiedFun, JRCallback jrCallback) throws DeliveryException
     {
-        return delivery(httpMethod, appValues == null ? null : new WPObject(appValues), porterPrefix, tiedFun);
+        return delivery(httpMethod, appValues == null ? null : new WPObject(appValues), porterPrefix, tiedFun,
+                jrCallback);
     }
 
     /**
@@ -168,7 +168,8 @@ public class HttpDelivery
      * @throws DeliveryException
      */
     public JResponse delivery(HttpMethod httpMethod, WPObject wpObject,
-            Class<? extends WebPorter> wporterClass, String methodName, Param forParam) throws DeliveryException
+            Class<? extends WebPorter> wporterClass, String methodName, Param forParam,
+            JRCallback jrCallback) throws DeliveryException
     {
         JResponse jr = null;
         try
@@ -179,10 +180,10 @@ public class HttpDelivery
             SimpleAppValues simpleAppValues = getNVAppValues(c, method);
             addWPObjectParams(simpleAppValues, wpObject);
             String url = getUrl(c, method, forParam);
-            jr = HttpUtil.requestWPorter(simpleAppValues, httpMethod, httpClient, url);
+            jr = HttpUtil.requestWPorter(simpleAppValues, httpMethod, okHttpClient, url, jrCallback);
         } catch (NoSuchMethodException e)
         {
-            throw  new DeliveryException("getMethod EX:" + e.toString());
+            throw new DeliveryException("getMethod EX:" + e.toString());
         }
         return jr;
     }
@@ -197,7 +198,7 @@ public class HttpDelivery
      * @throws DeliveryException
      */
     public JResponse _delivery(HttpMethod httpMethod, WPObject wpObject, int stack,
-            Param forParam) throws DeliveryException
+            Param forParam, JRCallback jrCallback) throws DeliveryException
     {
         JResponse jr = null;
 
@@ -205,10 +206,10 @@ public class HttpDelivery
         {
             Object[] names = LogUtil.methodAndClass(stack + 2);
             Class<? extends WebPorter> c = (Class<? extends WebPorter>) Class.forName((String) names[1]);
-            jr = delivery(httpMethod, wpObject, c, (String) names[0], forParam);
+            jr = delivery(httpMethod, wpObject, c, (String) names[0], forParam, jrCallback);
         } catch (ClassNotFoundException e)
         {
-            throw  new DeliveryException("getClass EX:" + e.toString());
+            throw new DeliveryException("getClass EX:" + e.toString());
         }
         return jr;
     }

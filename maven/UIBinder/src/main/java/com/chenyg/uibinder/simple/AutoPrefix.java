@@ -26,7 +26,7 @@ public class AutoPrefix extends SimpleDealtPrefix
     {
         super(idPrefix, porterPrefix, null, SimpleErrDealt.getSimpleErrDealt(),
                 new Params(thinkType, new HttpDelivery(urlPrefix,
-                        HttpUtil.getHttpClient()), getSimpleDealt(), true));
+                        HttpUtil.getClient(null)), getSimpleDealt(), true));
     }
 
     public AutoPrefix(String idPrefix, String porterPrefix, String urlPrefix)
@@ -95,7 +95,6 @@ public class AutoPrefix extends SimpleDealtPrefix
 
         void dealSSD(String porterPrefix, String tiedFun, JSONObject how) throws JSONException
         {
-
             JSONArray jsonArray = how.getJSONArray("sets");
             BinderData binderData = new BinderData();
             List<BinderSet> list = binderData.addSetTask();

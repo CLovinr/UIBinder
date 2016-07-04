@@ -4,6 +4,7 @@ package com.chenyg.uibinder.simple;
 import com.chenyg.uibinder.*;
 import com.chenyg.uibinder.base.HttpDelivery;
 import com.chenyg.uibinder.base.HttpMethod;
+import com.chenyg.uibinder.base.JRCallback;
 import com.chenyg.wporter.WPObject;
 import com.chenyg.wporter.WebPorter;
 import com.chenyg.wporter.annotation.ThinkType;
@@ -25,32 +26,32 @@ public class SimpleDealtUtil
     private Executor executor;
 
 
-    public SimpleDealtUtil(HttpDelivery httpDelivery, ThinkType thinkType,Executor executor)
+    public SimpleDealtUtil(HttpDelivery httpDelivery, ThinkType thinkType, Executor executor)
     {
         this._httpDelivery = httpDelivery;
         this.thinkType = thinkType;
-        this.executor=executor;
+        this.executor = executor;
     }
 
     public SimpleDealtUtil(HttpDelivery httpDelivery, ThinkType thinkType)
     {
-        this(httpDelivery,thinkType,3);
+        this(httpDelivery, thinkType, 3);
     }
 
-    public SimpleDealtUtil(HttpDelivery httpDelivery, ThinkType thinkType,int fixedThreadCount)
+    public SimpleDealtUtil(HttpDelivery httpDelivery, ThinkType thinkType, int fixedThreadCount)
     {
-        this(httpDelivery,thinkType,Executors.newFixedThreadPool(fixedThreadCount));
+        this(httpDelivery, thinkType, Executors.newFixedThreadPool(fixedThreadCount));
     }
-
-
 
 
     /**
      * 异步回调，会开启一个线程;并且,会禁用触发控件，请求返回后自动恢复。
      *
+     * @param stack
      * @param httpMethod
      * @param wpObject
      * @param porterPrefix 该ui绑定对应的接口前缀。
+     * @param simpleDealt
      */
     public void deliveryAsyn(int stack, final HttpMethod httpMethod, final WPObject wpObject, final String porterPrefix,
             final SimpleDealt simpleDealt)
@@ -90,60 +91,29 @@ public class SimpleDealtUtil
 
 
     /**
-     * 异步回调，会开启一个线程.
-     *
-     * @param httpMethod
-     * @param wpObject
-     * @param porterPrefix 如果提供了，则会禁用相关按钮
-     * @param tiedFun
-     * @param showWaitting
-     */
-    public void deliveryAsyn(final HttpMethod httpMethod, final WPObject wpObject, final String porterPrefix,
-            final String tiedFun, final boolean showWaitting, final SimpleDealt simpleDealt)
-    {
-
-        executor.execute(new Runnable()
-        {
-            @Override
-            public void run()
-            {
-                _delivery(httpMethod, wpObject, porterPrefix, tiedFun,
-                        showWaitting, simpleDealt);
-            }
-        });
-    }
-
-    public void deliveryAsyn(HttpMethod httpMethod, AppValues appValues, String porterPrefix,
-            String tiedFun, boolean showWaitting, SimpleDealt simpleDealt)
-    {
-        deliveryAsyn(httpMethod, appValues == null ? null : new WPObject(appValues), porterPrefix, tiedFun,
-                showWaitting, simpleDealt);
-    }
-
-    /**
      * 同步
      *
      * @param httpMethod
      * @param appValues
      * @param porterPrefix 如果提供了，则会禁用相关按钮
      * @param tiedFun
-     * @param showWaitting
+     * @param showWaiting
      * @return
      */
     public JResponse delivery(HttpMethod httpMethod, AppValues appValues, String porterPrefix, String tiedFun,
-            boolean showWaitting, SimpleDealt simpleDealt)
+            boolean showWaiting, SimpleDealt simpleDealt, JRCallback jrCallback)
     {
         JResponse jResponse = _delivery(httpMethod, appValues == null ? null : new WPObject(appValues),
-                porterPrefix, tiedFun, showWaitting,
-                simpleDealt);
+                porterPrefix, tiedFun, showWaiting,
+                simpleDealt, jrCallback);
         return jResponse;
     }
 
     public JResponse delivery(HttpMethod httpMethod, WPObject wpObject, String porterPrefix, String tiedFun,
-            boolean showWaitting, SimpleDealt simpleDealt)
+            boolean showWaitting, SimpleDealt simpleDealt, JRCallback jrCallback)
     {
         JResponse jResponse = _delivery(httpMethod, wpObject, porterPrefix, tiedFun, showWaitting,
-                simpleDealt);
+                simpleDealt, jrCallback);
         return jResponse;
     }
 
@@ -200,74 +170,100 @@ public class SimpleDealtUtil
         {
 
             jr = webPorterClass == null ? _httpDelivery
-                    ._delivery(httpMethod, wpObject, stack + 1, forParam) : _httpDelivery
-                    .delivery(httpMethod, wpObject, webPorterClass, method, forParam);
+                    ._delivery(httpMethod, wpObject, stack + 1, forParam, null) : _httpDelivery
+                    .delivery(httpMethod, wpObject, webPorterClass, method, forParam, null);
             if (simpleDealt == null)
             {
                 simpleDealt = this.simpleDealt;
             }
-            SimpleDealtPrefix.dealResponse(httpMethod,_httpDelivery,jr,errListener,simpleDealt,forParam.porterPrefix,forParam.tiedFun);
+            SimpleDealtPrefix
+                    .dealResponse(httpMethod, _httpDelivery, jr, errListener, simpleDealt, forParam.porterPrefix,
+                            forParam.tiedFun);
         } catch (HttpDelivery.DeliveryException e)
         {
-            jr = showEx(e,forParam.porterPrefix,forParam.tiedFun);
+            jr = showEx(e, forParam.porterPrefix, forParam.tiedFun);
             jr.setExCause(e);
         }
         return jr;
     }
 
 
-    private JResponse showEx(HttpDelivery.DeliveryException e,String porterPrefix,String tiedFun)
+    private JResponse showEx(HttpDelivery.DeliveryException e, String porterPrefix, String tiedFun)
     {
         BaseUI.getBaseUI().alert(LangMap.getLangMap().get(LangMap.CommonStr.EXCEPTION) + ":\n" + e.toString());
         JResponse jr = new JResponse(ResultCode.EXCEPTION);
         jr.setDescription(e.toString());
         if (simpleDealt != null)
         {
-            simpleDealt.onException(porterPrefix,tiedFun,e);
+            simpleDealt.onException(porterPrefix, tiedFun, e);
         }
         return jr;
     }
 
 
-    private JResponse _delivery(HttpMethod httpMethod, WPObject wpObject, String porterPrefix, String tiedFun,
-            boolean showWaitting, SimpleDealt simpleDealt)
+    private JResponse _delivery(final HttpMethod httpMethod, WPObject wpObject, final String porterPrefix,
+            final String tiedFun,
+            final boolean showWaiting, SimpleDealt simpleDealt, final JRCallback jrCallback)
     {
         JResponse jr = null;
-        BaseUI baseUI = BaseUI.getBaseUI();
         if (porterPrefix != null)
         {
             BinderData binderData = new BinderData();
             binderData.addSetTask(new BinderSet(tiedFun, tiedFun, AttrEnum.ATTR_ENABLE, false));
-            baseUI.sendBinderData(porterPrefix, binderData, false);
+            BaseUI.getBaseUI().sendBinderData(porterPrefix, binderData, false);
         }
         try
         {
-            if (showWaitting)
-            {
-                baseUI.waitingShow();
-            }
-            jr = _httpDelivery
-                    .delivery(httpMethod, wpObject, porterPrefix, thinkType == ThinkType.REST ? "" : tiedFun);
-            if (showWaitting)
-            {
-                baseUI.waitingDisShow();
-            }
             if (simpleDealt == null)
             {
                 simpleDealt = this.simpleDealt;
             }
-            SimpleDealtPrefix.dealResponse(httpMethod,_httpDelivery,jr,errListener,simpleDealt,porterPrefix,tiedFun);
+            if (showWaiting)
+            {
+                BaseUI.getBaseUI().waitingShow();
+            }
+            if (jrCallback == null)
+            {
+                jr = _httpDelivery
+                        .delivery(httpMethod, wpObject, porterPrefix, thinkType == ThinkType.REST ? "" : tiedFun, null);
+                SimpleDealtPrefix
+                        .dealResponse(httpMethod, _httpDelivery, jr, errListener, simpleDealt, porterPrefix, tiedFun);
+            } else
+            {
+                final SimpleDealt finalSimpleDealt = simpleDealt;
+                JRCallback callback = new JRCallback()
+                {
+                    @Override
+                    public void onResult(JResponse jResponse)
+                    {
+                        SimpleDealtPrefix
+                                .dealResponse(httpMethod, _httpDelivery, jResponse, errListener, finalSimpleDealt,
+                                        porterPrefix, tiedFun);
+                        jrCallback.onResult(jResponse);
+                        if (showWaiting)
+                        {
+                            BaseUI.getBaseUI().waitingDisShow();
+                        }
+                    }
+                };
+                jr = _httpDelivery
+                        .delivery(httpMethod, wpObject, porterPrefix, thinkType == ThinkType.REST ? "" : tiedFun,
+                                callback);
+            }
+
+
         } catch (HttpDelivery.DeliveryException e)
         {
-            jr = showEx(e,porterPrefix,tiedFun);
+            jr = showEx(e, porterPrefix, tiedFun);
             jr.setExCause(e);
-        } finally
-        {
-            if (porterPrefix != null)
+            if (jrCallback != null)
             {
-                BinderData binderData = new BinderData();
-                binderData.addSetTask(new BinderSet(tiedFun, tiedFun, AttrEnum.ATTR_ENABLE, true));
-                baseUI.sendBinderData(porterPrefix, binderData, false);
+                jrCallback.onResult(jr);
+            }
+            SimpleDealtPrefix.restoreEnableState(porterPrefix, tiedFun);
+            if (showWaiting)
+            {
+                BaseUI.getBaseUI().waitingDisShow();
             }
         }
         return jr;

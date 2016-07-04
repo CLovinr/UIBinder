@@ -4,6 +4,7 @@ package com.chenyg.uibinder.simple;
 import com.chenyg.uibinder.*;
 import com.chenyg.uibinder.base.HttpDelivery;
 import com.chenyg.uibinder.base.HttpMethod;
+import com.chenyg.uibinder.base.JRCallback;
 import com.chenyg.wporter.annotation.ThinkType;
 import com.chenyg.wporter.base.AppValues;
 import com.chenyg.wporter.base.JResponse;
@@ -79,42 +80,59 @@ public class SimpleDealtPrefix extends Prefix
     }
 
 
-    public static void _toServer(HttpMethod httpMethod, AppValues appValues, String porterPrefix, String tiedFun,
-            ThinkType thinkType, boolean showWaitting, HttpDelivery httpDelivery, SimpleDealt simpleDealt,
-            ErrListener errListener)
+    public static void _toServer(final HttpMethod httpMethod, AppValues appValues, final String porterPrefix,
+            final String tiedFun,
+            ThinkType thinkType, final boolean showWaitting, final HttpDelivery httpDelivery,
+            final SimpleDealt simpleDealt,
+            final ErrListener errListener)
     {
-        JResponse jr;
-        BaseUI baseUI = BaseUI.getBaseUI();
         if (porterPrefix != null)
         {
             BinderData binderData = new BinderData();
             binderData.addSetTask(new BinderSet(tiedFun, tiedFun, AttrEnum.ATTR_ENABLE, false));
-            baseUI.sendBinderData(porterPrefix, binderData, false);
+            BaseUI.getBaseUI().sendBinderData(porterPrefix, binderData, false);
         }
         try
         {
             if (showWaitting)
             {
-                baseUI.waitingShow();
+                BaseUI.getBaseUI().waitingShow();
             }
-            jr = httpDelivery
-                    .delivery(httpMethod, appValues, porterPrefix, thinkType == ThinkType.REST ? "" : tiedFun);
-            if (showWaitting)
+            JRCallback jrCallback = new JRCallback()
             {
-                baseUI.waitingDisShow();
-            }
-            dealResponse(httpMethod, httpDelivery, jr, errListener, simpleDealt, porterPrefix, tiedFun);
+                @Override
+                public void onResult(JResponse jResponse)
+                {
+                    dealResponse(httpMethod, httpDelivery, jResponse, errListener, simpleDealt, porterPrefix, tiedFun);
+                    restoreEnableState(porterPrefix, tiedFun);
+                    if (showWaitting)
+                    {
+                        BaseUI.getBaseUI().waitingDisShow();
+                    }
+                }
+            };
+            httpDelivery
+                    .delivery(httpMethod, appValues, porterPrefix, thinkType == ThinkType.REST ? "" : tiedFun,
+                            jrCallback);
+
         } catch (HttpDelivery.DeliveryException e)
         {
             simpleDealt.onException(porterPrefix, tiedFun, e);
-        } finally
-        {
-            if (porterPrefix != null)
+            restoreEnableState(porterPrefix, tiedFun);
+            if (showWaitting)
             {
-                BinderData binderData = new BinderData();
-                binderData.addSetTask(new BinderSet(tiedFun, tiedFun, AttrEnum.ATTR_ENABLE, true));
-                baseUI.sendBinderData(porterPrefix, binderData, false);
+                BaseUI.getBaseUI().waitingDisShow();
             }
+        }
+    }
+
+     static void restoreEnableState(String porterPrefix, String tiedFun)
+    {
+        if (porterPrefix != null)
+        {
+            BinderData binderData = new BinderData();
+            binderData.addSetTask(new BinderSet(tiedFun, tiedFun, AttrEnum.ATTR_ENABLE, true));
+            BaseUI.getBaseUI().sendBinderData(porterPrefix, binderData, false);
         }
     }
 

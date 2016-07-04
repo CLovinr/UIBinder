@@ -6,52 +6,30 @@ import com.chenyg.wporter.base.AppValues;
 import com.chenyg.wporter.base.ContentType;
 import com.chenyg.wporter.base.JResponse;
 import com.chenyg.wporter.base.ResultCode;
-import com.chenyg.wporter.log.LogUtil;
 import com.chenyg.wporter.simple.WPFormBuilder;
 import com.chenyg.wporter.util.WPTool;
-import org.apache.http.HttpEntity;
-import org.apache.http.HttpResponse;
-import org.apache.http.HttpVersion;
-import org.apache.http.NameValuePair;
-import org.apache.http.client.CookieStore;
-import org.apache.http.client.HttpClient;
-import org.apache.http.client.entity.UrlEncodedFormEntity;
-import org.apache.http.client.methods.*;
-import org.apache.http.client.params.ClientPNames;
-import org.apache.http.client.params.CookiePolicy;
-import org.apache.http.conn.ClientConnectionManager;
-import org.apache.http.conn.scheme.PlainSocketFactory;
-import org.apache.http.conn.scheme.Scheme;
-import org.apache.http.conn.scheme.SchemeRegistry;
-import org.apache.http.conn.ssl.SSLSocketFactory;
-import org.apache.http.entity.ContentProducer;
-import org.apache.http.entity.EntityTemplate;
-import org.apache.http.impl.client.AbstractHttpClient;
-import org.apache.http.impl.client.DefaultHttpClient;
-import org.apache.http.impl.conn.tsccm.ThreadSafeClientConnManager;
-import org.apache.http.message.BasicNameValuePair;
-import org.apache.http.params.*;
-import org.apache.http.protocol.HTTP;
-import org.apache.http.util.EntityUtils;
+import com.squareup.okhttp.*;
+import okio.BufferedSink;
+
 
 import java.io.IOException;
-import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
+import java.net.CookieHandler;
 import java.net.URLEncoder;
-import java.security.KeyStore;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Created by 宇宙之灵 on 2015/9/12.
  */
 public class HttpUtil
 {
+
+
     private static final int SET_CONNECTION_TIMEOUT = 10 * 1000;
     private static final int SET_SOCKET_TIMEOUT = 20 * 1000;
 
 
-    public static void doHttpOption(AbstractHttpClient httpClient, HttpOption httpOption)
+    public static void doHttpOption(OkHttpClient okHttpClient, HttpOption httpOption)
     {
         if (httpOption == null)
         {
@@ -60,85 +38,28 @@ public class HttpUtil
         }
         if (httpOption.conn_timeout != null)
         {
-            httpClient.getParams()
-                    .setParameter(CoreConnectionPNames.CONNECTION_TIMEOUT, httpOption.conn_timeout.intValue());
+            okHttpClient.setConnectTimeout(httpOption.conn_timeout, TimeUnit.MILLISECONDS);
         }
 
         if (httpOption.so_timeout != null)
         {
-            httpClient.getParams().setParameter(CoreConnectionPNames.SO_TIMEOUT, httpOption.so_timeout.intValue());
+            okHttpClient.setReadTimeout(httpOption.so_timeout, TimeUnit.MILLISECONDS);
+            okHttpClient.setWriteTimeout(httpOption.so_timeout, TimeUnit.MILLISECONDS);
         }
 
     }
 
 
-    /**
-     * 支持https,使用同一个HttpClient可以保持会话。
-     *
-     * @return
-     */
-
-    public static AbstractHttpClient getHttpClient()
+    public static OkHttpClient getClient(CookieHandler cookieHandler)
     {
-        return getHttpClient(null);
+        OkHttpClient okHttpClient = new OkHttpClient();
+        okHttpClient.setConnectTimeout(SET_CONNECTION_TIMEOUT, TimeUnit.MILLISECONDS);
+        okHttpClient.setReadTimeout(SET_SOCKET_TIMEOUT, TimeUnit.MILLISECONDS);
+        okHttpClient.setWriteTimeout(SET_SOCKET_TIMEOUT, TimeUnit.MILLISECONDS);
+        okHttpClient.setCookieHandler(cookieHandler);
+        return okHttpClient;
     }
 
-    public static AbstractHttpClient getHttpClient(CookieStore cookieStore)
-    {
-        DefaultHttpClient client;
-        try
-        {
-            KeyStore trustStore = KeyStore.getInstance(KeyStore.getDefaultType());
-            trustStore.load(null, null);
-
-            SSLSocketFactory sf = new MySSLSocketFactory(trustStore);
-            sf.setHostnameVerifier(SSLSocketFactory.ALLOW_ALL_HOSTNAME_VERIFIER);
-
-            HttpParams params = new BasicHttpParams();
-
-            HttpConnectionParams.setConnectionTimeout(params, 10000);
-            HttpConnectionParams.setSoTimeout(params, 10000);
-
-            HttpProtocolParams.setVersion(params, HttpVersion.HTTP_1_1);
-            HttpProtocolParams.setContentCharset(params, HTTP.UTF_8);
-
-            SchemeRegistry registry = new SchemeRegistry();
-            registry.register(new Scheme("http", PlainSocketFactory.getSocketFactory(), 80));
-            registry.register(new Scheme("https", sf, 443));
-
-            ClientConnectionManager ccm = new ThreadSafeClientConnManager(params, registry);
-
-            HttpConnectionParams.setConnectionTimeout(params, SET_CONNECTION_TIMEOUT);
-            HttpConnectionParams.setSoTimeout(params, SET_SOCKET_TIMEOUT);
-            client = new DefaultHttpClient(ccm, params);
-
-
-        } catch (Exception e)
-        {
-            client = new DefaultHttpClient();
-        }
-
-        HttpParams httpParams = client.getParams();
-        if (cookieStore != null)
-        {
-            client.setCookieStore(cookieStore);
-            httpParams.setParameter(ClientPNames.COOKIE_POLICY, CookiePolicy.BEST_MATCH);
-        } else
-        {
-            try
-            {
-                LogUtil.printErrPosLn(CookiePolicy.IGNORE_COOKIES);
-                CookiePolicy.class.getField("IGNORE_COOKIES");
-                httpParams.setParameter(ClientPNames.COOKIE_POLICY, CookiePolicy.IGNORE_COOKIES);
-            } catch (Exception e)
-            {
-                //e.printStackTrace();
-            }
-
-        }
-
-        return client;
-    }
 
     /**
      * 移除末尾指定的字符(若存在的话)。
@@ -219,7 +140,7 @@ public class HttpUtil
     }
 
 
-    private static void addPostParams(List<NameValuePair> params, String[] names, Object[] values)
+    private static void addPostParams(FormEncodingBuilder formEncodingBuilder, String[] names, Object[] values)
     {
         if (names == null)
         {
@@ -229,26 +150,25 @@ public class HttpUtil
         {
             if (values[i] != null)
             {
-                params.add(new BasicNameValuePair(names[i], values[i] + ""));
+                formEncodingBuilder.addEncoded(names[i], String.valueOf(values[i]));
             }
         }
     }
 
-    private static void dealBodyParams(WPObject wpObject, HttpEntityEnclosingRequestBase requestBase) throws
+    private static RequestBody dealBodyParams(WPObject wpObject) throws
             UnsupportedEncodingException
     {
         if (wpObject == null || wpObject.inNames == null)
         {
-            return;
+            return null;
         }
-        List<NameValuePair> params = new ArrayList<NameValuePair>();
+        FormEncodingBuilder formEncodingBuilder = new FormEncodingBuilder();
 
-        addPostParams(params, wpObject.inNames.cnNames, wpObject.cns);
-        addPostParams(params, wpObject.inNames.cuNames, wpObject.cus);
-        addPostParams(params, wpObject.inNames.fnNames, wpObject.fns);
-        addPostParams(params, wpObject.inNames.fuNames, wpObject.fus);
-
-        requestBase.setEntity(new UrlEncodedFormEntity(params, HTTP.UTF_8));
+        addPostParams(formEncodingBuilder, wpObject.inNames.cnNames, wpObject.cns);
+        addPostParams(formEncodingBuilder, wpObject.inNames.cuNames, wpObject.cus);
+        addPostParams(formEncodingBuilder, wpObject.inNames.fnNames, wpObject.fns);
+        addPostParams(formEncodingBuilder, wpObject.inNames.fuNames, wpObject.fus);
+        return formEncodingBuilder.build();
     }
 
 
@@ -257,70 +177,89 @@ public class HttpUtil
      *
      * @param appValues
      * @param httpMethod
-     * @param httpClient
+     * @param okHttpClient
      * @param url
+     * @param jrCallback
      * @return
      * @throws IOException
      */
-    public static JResponse request(AppValues appValues, HttpMethod httpMethod, HttpClient httpClient,
-            String url) throws IOException
+    public static JResponse request(AppValues appValues, HttpMethod httpMethod, OkHttpClient okHttpClient,
+            String url, JRCallback jrCallback) throws IOException
     {
-        return requestWPorter(appValues == null ? null : new WPObject(appValues), httpMethod, httpClient, url);
+        return requestWPorter(appValues == null ? null : new WPObject(appValues), httpMethod, okHttpClient, url,
+                jrCallback);
     }
 
 
-    public static HttpResponse wpFormRequest(boolean isPost, final WPForm wpForm, HttpClient httpClient,
-            String url) throws IOException
+    public static Response wpFormRequest(boolean isPostOrPut, final WPForm wpForm, OkHttpClient okHttpClient,
+            String url, Callback callback) throws IOException
     {
-        HttpResponse httpResponse;
+        Response response = null;
         try
         {
 
-            HttpEntityEnclosingRequestBase requestBase;
-            if (isPost)
-            {
-                requestBase = new HttpPost(url);
-            } else
-            {
-                requestBase = new HttpPut(url);
-            }
-            requestBase.setHeader(ContentType.HEADER_NAME, "application/octet-stream");
-            requestBase.setHeader(WPForm.HEADER_NAME, ContentType.WPORTER_FORM.getType());
-            ContentProducer producer = new ContentProducer()
+            RequestBody requestBody = new RequestBody()
             {
                 @Override
-                public void writeTo(OutputStream outputStream) throws IOException
+                public MediaType contentType()
                 {
-                    WPFormBuilder.write(wpForm, outputStream);
+                    return MediaType.parse("application/octet-stream");
+                }
+
+                @Override
+                public void writeTo(BufferedSink bufferedSink) throws IOException
+                {
+
+                    WPFormBuilder.write(wpForm, bufferedSink.outputStream());
                 }
             };
-            requestBase.setEntity(new EntityTemplate(producer));
-            httpResponse = httpClient.execute(requestBase);
 
+            Request.Builder builder = new Request.Builder().url(url);
+
+            Request request = null;
+            if (isPostOrPut)
+            {
+                builder.post(requestBody);
+            } else
+            {
+                builder.put(requestBody);
+            }
+            builder.addHeader(WPForm.HEADER_NAME, ContentType.WPORTER_FORM.getType());
+            request = builder.build();
+            if (callback == null)
+            {
+                response = okHttpClient.newCall(request).execute();
+            } else
+            {
+                okHttpClient.newCall(request).enqueue(callback);
+            }
         } catch (IOException e)
         {
             throw e;
         }
 
-        return httpResponse;
+        return response;
     }
 
     /**
      * 把请求进行转发。
      *
-     * @param wpObject   可以为null
+     * @param wpObject     可以为null
      * @param httpMethod
-     * @param httpClient
+     * @param okHttpClient
      * @param url
+     * @param callback     为null表示同步,则返回response；否则表示异步，返回的response一定为null。
      * @return
+     * @throws IOException
      */
-    public static HttpResponse request(WPObject wpObject, HttpMethod httpMethod, HttpClient httpClient,
-            String url) throws IOException
+    public static Response request(WPObject wpObject, HttpMethod httpMethod, OkHttpClient okHttpClient,
+            String url, Callback callback) throws IOException
     {
-        HttpResponse httpResponse = null;
+        Response response = null;
         try
         {
-            HttpUriRequest request = null;
+            Request.Builder builder = new Request.Builder();
+            Request request = null;
             if (httpMethod == null)
             {
                 httpMethod = HttpMethod.GET;
@@ -330,77 +269,101 @@ public class HttpUtil
 
                 case PUT:
                 {
-                    HttpPut httpPut = new HttpPut(url);
-                    dealBodyParams(wpObject, httpPut);
-                    request = httpPut;
+                    RequestBody requestBody = dealBodyParams(wpObject);
+                    request = builder.url(url).put(requestBody).build();
                 }
                 break;
                 case POST:
                 {
-                    HttpPost httpPost = new HttpPost(url);
-                    dealBodyParams(wpObject, httpPost);
-                    request = httpPost;
+                    RequestBody requestBody = dealBodyParams(wpObject);
+                    request = builder.url(url).post(requestBody).build();
                 }
                 break;
                 case GET:
                 {
                     url = dealUrlParams(wpObject, url);
-                    request = new HttpGet(url);
+                    request = builder.url(url).get().build();
                 }
 
                 break;
                 case DELETE:
                 {
                     url = dealUrlParams(wpObject, url);
-                    request = new HttpDelete(url);
+                    request = builder.url(url).delete().build();
                 }
                 break;
             }
-            httpResponse = httpClient.execute(request);
+            if (callback == null)
+            {
+                response = okHttpClient.newCall(request).execute();
+            } else
+            {
+                okHttpClient.newCall(request).enqueue(callback);
+            }
         } catch (IOException e)
         {
             throw e;
         }
 
-        return httpResponse;
+        return response;
     }
 
-    public static JResponse requestWPorter(AppValues appValues, HttpMethod httpMethod, HttpClient httpClient,
-            String url)
+    public static JResponse requestWPorter(AppValues appValues, HttpMethod httpMethod, OkHttpClient okHttpClient,
+            String url, JRCallback jrCallback)
     {
-        return requestWPorter(appValues == null ? null : new WPObject(appValues), httpMethod, httpClient, url);
+        return requestWPorter(appValues == null ? null : new WPObject(appValues), httpMethod, okHttpClient, url,
+                jrCallback);
     }
 
-    public static JResponse wpFormRequestServer(boolean isPost, final WPForm wpForm, HttpClient httpClient,
-            String url) throws IOException
+    public static JResponse wpFormRequestServer(boolean isPostOrPut, final WPForm wpForm, OkHttpClient okHttpClient,
+            String url, final JRCallback jrCallback) throws IOException
     {
-        JResponse jResponse;
+        JResponse jResponse = null;
         try
         {
-            HttpResponse httpResponse = wpFormRequest(isPost, wpForm, httpClient, url);
-            jResponse = _requestWPorter(httpResponse);
+            if (jrCallback == null)
+            {
+                Response response = wpFormRequest(isPostOrPut, wpForm, okHttpClient, url, null);
+                jResponse = toJResponse(response);
+            } else
+            {
+                wpFormRequest(isPostOrPut, wpForm, okHttpClient, url, new Callback()
+                {
+                    @Override
+                    public void onFailure(Request request, IOException e)
+                    {
+                        jrCallback.onResult(onIOException(e));
+                    }
+
+                    @Override
+                    public void onResponse(Response response) throws IOException
+                    {
+                        jrCallback.onResult(toJResponse(response));
+                    }
+                });
+            }
         } catch (IOException e)
         {
-            jResponse = new JResponse();
-            jResponse.setCode(ResultCode.NET_EXCEPTION);
-            jResponse.setDescription(e.toString());
-            jResponse.setExCause(e);
+            jResponse = onIOException(e);
+            if (jrCallback != null)
+            {
+                jrCallback.onResult(jResponse);
+            }
         }
         return jResponse;
     }
 
-    private static JResponse _requestWPorter(HttpResponse httpResponse)
+    private static JResponse toJResponse(Response response)
     {
         JResponse jResponse;
-        boolean needClose = true;
+        ResponseBody responseBody = null;
         try
         {
-            int code = httpResponse.getStatusLine().getStatusCode();
+            int code = response.code();
             if (code == 200 || code == 201)
             {
-                HttpEntity httpEntity = httpResponse.getEntity();
-                String json = EntityUtils.toString(httpEntity);
-                needClose = false;
+                responseBody = response.body();
+                String json = responseBody.string();
                 jResponse = JResponse.fromJSON(json);
             } else if (code == 204)
             {
@@ -408,14 +371,11 @@ public class HttpUtil
             } else
             {
                 jResponse = new JResponse(ResultCode.toResponseCode(code));
-                jResponse.setDescription(httpResponse.getStatusLine().getReasonPhrase());
+                jResponse.setDescription(response.message());
             }
         } catch (IOException e)
         {
-            jResponse = new JResponse();
-            jResponse.setCode(ResultCode.NET_EXCEPTION);
-            jResponse.setDescription(e.toString());
-            jResponse.setExCause(e);
+            jResponse = onIOException(e);
         } catch (JResponse.JResponseFormatException e)
         {
             jResponse = new JResponse();
@@ -424,17 +384,7 @@ public class HttpUtil
             jResponse.setExCause(e);
         } finally
         {
-            if (needClose)
-            {
-                try
-                {
-                    WPTool.close(httpResponse.getEntity().getContent());
-                } catch (Exception e)
-                {
-                    //e.printStackTrace();
-                }
-            }
-
+            WPTool.close(responseBody);
         }
         return jResponse;
     }
@@ -442,28 +392,58 @@ public class HttpUtil
     /**
      * 把数据发向服务器，并接受响应结果。（同步的）
      *
-     * @param wpObject   可以为null
-     * @param httpMethod 像服务器发起的请求方法
-     * @param httpClient
-     * @param url        url地址
+     * @param wpObject     可以为null
+     * @param httpMethod   像服务器发起的请求方法
+     * @param okHttpClient
+     * @param url          url地址
+     * @param jrCallback
      * @return
-     * @see #requestWPorter(WPObject, HttpMethod, HttpClient, String)
      */
-    public static JResponse requestWPorter(WPObject wpObject, HttpMethod httpMethod, HttpClient httpClient,
-            String url)
+    public static JResponse requestWPorter(WPObject wpObject, HttpMethod httpMethod, OkHttpClient okHttpClient,
+            String url, final JRCallback jrCallback)
     {
-        JResponse jResponse;
+        JResponse jResponse = null;
         try
         {
-            HttpResponse httpResponse = request(wpObject, httpMethod, httpClient, url);
-            jResponse = _requestWPorter(httpResponse);
+
+            if (jrCallback == null)
+            {
+                Response response = request(wpObject, httpMethod, okHttpClient, url, null);
+                jResponse = toJResponse(response);
+            } else
+            {
+                request(wpObject, httpMethod, okHttpClient, url, new Callback()
+                {
+                    @Override
+                    public void onFailure(Request request, IOException e)
+                    {
+                        jrCallback.onResult(onIOException(e));
+                    }
+
+                    @Override
+                    public void onResponse(Response response) throws IOException
+                    {
+                        jrCallback.onResult(toJResponse(response));
+                    }
+                });
+            }
         } catch (IOException e)
         {
-            jResponse = new JResponse();
-            jResponse.setCode(ResultCode.NET_EXCEPTION);
-            jResponse.setDescription(e.toString());
-            jResponse.setExCause(e);
+            jResponse = onIOException(e);
+            if (jrCallback != null)
+            {
+                jrCallback.onResult(jResponse);
+            }
         }
+        return jResponse;
+    }
+
+    private static JResponse onIOException(IOException e)
+    {
+        JResponse jResponse = new JResponse();
+        jResponse.setCode(ResultCode.NET_EXCEPTION);
+        jResponse.setDescription(e.toString());
+        jResponse.setExCause(e);
         return jResponse;
     }
 
