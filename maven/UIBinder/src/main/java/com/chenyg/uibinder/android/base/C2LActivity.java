@@ -42,7 +42,7 @@ public class C2LActivity extends Activity {
         try {
             AppMain.init();
             if (config==null){
-                AppMain.getAppMain().start();
+                throw new NullPointerException(Config.class+" is null!");
             }else{
                 AppMain.getAppMain().start(config);
                 config=null;

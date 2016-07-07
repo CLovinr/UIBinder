@@ -357,9 +357,9 @@ public class BinderActivity extends C2LActivity
      * @param dealType
      * @param webPorters 待扫描的接口
      */
-    public BinderActivity(Class<?> classR, DealType dealType, WebPorter... webPorters)
+    public BinderActivity(Class<?> classR, DealType dealType,Config config, WebPorter... webPorters)
     {
-        super(classR);
+        super(classR,config);
         id = count++;
         Set<WebPorter> set = new HashSet<WebPorter>(webPorters.length);
         for (WebPorter webPorter : webPorters)
@@ -367,16 +367,6 @@ public class BinderActivity extends C2LActivity
             set.add(webPorter);
         }
         init(set, dealType);
-    }
-
-    /**
-     * @param classR     R.class
-     * @param dealType
-     * @param webPorters 待扫描的接口
-     */
-    public BinderActivity(Class<?> classR, DealType dealType, Set<WebPorter> webPorters)
-    {
-        this(classR, dealType, webPorters, null);
     }
 
     private void init(Set<WebPorter> webPorters, DealType dealType)
