@@ -5,11 +5,7 @@ import com.chenyg.wporter.base.JResponse;
 import com.squareup.okhttp.OkHttpClient;
 
 
-import java.io.IOException;
 import java.net.*;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
 
 /**
  * Created by 宇宙之灵 on 2016/2/15.

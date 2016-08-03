@@ -6,6 +6,7 @@ import com.chenyg.wporter.annotation.ChildIn;
 import com.chenyg.wporter.base.AppValues;
 import com.chenyg.wporter.base.JResponse;
 import com.chenyg.wporter.base.SimpleAppValues;
+import com.chenyg.wporter.annotation.FatherIn;
 import com.chenyg.wporter.log.LogUtil;
 import com.squareup.okhttp.OkHttpClient;
 
@@ -45,7 +46,7 @@ public class HttpDelivery
     public @interface DConfig
     {
         /**
-         * 请求url的父绑定名，默认为""(表示使用{@linkplain com.chenyg.wporter.annotation.FatherIn}所表示的绑定名)
+         * 请求url的父绑定名，默认为""(表示使用{@linkplain FatherIn}所表示的绑定名)
          *
          * @return 远程接口绑定名
          */

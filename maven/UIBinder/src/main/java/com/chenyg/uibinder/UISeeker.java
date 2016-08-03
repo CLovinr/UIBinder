@@ -4,15 +4,15 @@ package com.chenyg.uibinder;
 import com.chenyg.uibinder.base.HttpMethod;
 import com.chenyg.uibinder.simple.SimpleDealtPrefix;
 import com.chenyg.wporter.a.app.AppPorterUtil;
-import com.chenyg.wporter.base.*;
-import com.chenyg.wporter.log.LogUtil;
+import com.chenyg.wporter.base.AppValues;
+import com.chenyg.wporter.base.JResponse;
+import com.chenyg.wporter.base.RequestMethod;
+import com.chenyg.wporter.base.ResultCode;
 
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Stack;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * 扫描器

@@ -15,6 +15,8 @@ import okio.BufferedSink;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.CookieHandler;
+import java.net.CookieManager;
+import java.net.CookiePolicy;
 import java.net.URLEncoder;
 import java.util.concurrent.TimeUnit;
 
@@ -24,9 +26,30 @@ import java.util.concurrent.TimeUnit;
 public class HttpUtil
 {
 
+    private static class OkHttpClientImpl extends OkHttpClient
+    {
+        @Override
+        public OkHttpClient setCookieHandler(CookieHandler cookieHandler)
+        {
+            return this;
+        }
+
+        @Override
+        public CookieHandler getCookieHandler()
+        {
+            return null;
+        }
+
+        public OkHttpClient _setCookieHandler(CookieHandler cookieHandler)
+        {
+            return super.setCookieHandler(cookieHandler);
+        }
+    }
+
 
     private static final int SET_CONNECTION_TIMEOUT = 10 * 1000;
     private static final int SET_SOCKET_TIMEOUT = 20 * 1000;
+    private static OkHttpClientImpl defaultClient;
 
 
     public static void doHttpOption(OkHttpClient okHttpClient, HttpOption httpOption)
@@ -49,15 +72,43 @@ public class HttpUtil
 
     }
 
-
-    public static OkHttpClient getClient(CookieHandler cookieHandler)
+    private static OkHttpClientImpl _getClient(CookieHandler cookieHandler)
     {
-        OkHttpClient okHttpClient = new OkHttpClient();
+
+        OkHttpClientImpl okHttpClient = new OkHttpClientImpl();
         okHttpClient.setConnectTimeout(SET_CONNECTION_TIMEOUT, TimeUnit.MILLISECONDS);
         okHttpClient.setReadTimeout(SET_SOCKET_TIMEOUT, TimeUnit.MILLISECONDS);
         okHttpClient.setWriteTimeout(SET_SOCKET_TIMEOUT, TimeUnit.MILLISECONDS);
-        okHttpClient.setCookieHandler(cookieHandler);
+        if (cookieHandler == null)
+        {
+            CookieManager cookieManager = new CookieManager();
+            cookieManager.setCookiePolicy(CookiePolicy.ACCEPT_NONE);
+            okHttpClient._setCookieHandler(cookieManager);
+        } else
+        {
+            okHttpClient._setCookieHandler(cookieHandler);
+        }
+
         return okHttpClient;
+    }
+
+
+    /**
+     * @param cookieHandler 为null时，表示使用默认的对象，并且不支持cookie。
+     * @return
+     */
+    public static synchronized OkHttpClient getClient(CookieHandler cookieHandler)
+    {
+
+        if (cookieHandler == null)
+        {
+            if (defaultClient == null)
+            {
+                defaultClient = _getClient(null);
+            }
+            return defaultClient;
+        }
+        return _getClient(cookieHandler);
     }
 
 

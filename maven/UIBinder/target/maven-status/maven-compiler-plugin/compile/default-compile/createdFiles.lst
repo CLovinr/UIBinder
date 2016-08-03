@@ -139,6 +139,7 @@ com\chenyg\uibinder\UISeeker$NamesOccurStore$3.class
 com\chenyg\uibinder\j2se\binders\FileInputEditBinder$1.class
 com\chenyg\uibinder\base\HttpMethod.class
 com\chenyg\uibinder\j2se\binders\JProgressBarBinder.class
+com\chenyg\uibinder\base\HttpUtil$OkHttpClientImpl.class
 com\chenyg\uibinder\android\xmlui\XmlUIPorter$4.class
 com\chenyg\uibinder\j2se\binders\ArrayInputEditBinder.class
 com\chenyg\uibinder\j2se\form\ArrayInputEdit$Temp.class

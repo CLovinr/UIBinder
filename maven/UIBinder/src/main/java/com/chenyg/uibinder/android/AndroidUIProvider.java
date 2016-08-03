@@ -4,7 +4,6 @@ import android.view.View;
 import com.chenyg.uibinder.*;
 import com.chenyg.uibinder.Prefix;
 import com.chenyg.wporter.util.WPTool;
-
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Set;
