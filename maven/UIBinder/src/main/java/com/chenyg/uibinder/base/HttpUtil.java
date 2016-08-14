@@ -9,15 +9,17 @@ import com.chenyg.wporter.base.ResultCode;
 import com.chenyg.wporter.simple.WPFormBuilder;
 import com.chenyg.wporter.util.WPTool;
 import com.squareup.okhttp.*;
+import com.squareup.okhttp.Authenticator;
 import okio.BufferedSink;
 
 
+import javax.net.ssl.*;
 import java.io.IOException;
 import java.io.UnsupportedEncodingException;
-import java.net.CookieHandler;
-import java.net.CookieManager;
-import java.net.CookiePolicy;
-import java.net.URLEncoder;
+import java.net.*;
+import java.security.SecureRandom;
+import java.security.cert.CertificateException;
+import java.security.cert.X509Certificate;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -28,6 +30,50 @@ public class HttpUtil
 
     private static class OkHttpClientImpl extends OkHttpClient
     {
+        public OkHttpClientImpl()
+        {
+            setHostnameVerifier(new HostnameVerifier()
+            {
+                @Override
+                public boolean verify(String s, SSLSession sslSession)
+                {
+                    return true;
+                }
+            });
+
+
+            try{
+                SSLContext sslContext = SSLContext.getInstance("TLS");
+                X509TrustManager x509TrustManager = new X509TrustManager()
+                {
+                    @Override
+                    public void checkClientTrusted(X509Certificate[] x509Certificates,
+                            String s) throws CertificateException
+                    {
+
+                    }
+
+                    @Override
+                    public void checkServerTrusted(X509Certificate[] x509Certificates,
+                            String s) throws CertificateException
+                    {
+
+                    }
+
+                    @Override
+                    public X509Certificate[] getAcceptedIssuers()
+                    {
+                        return new X509Certificate[0];
+                    }
+                };
+                sslContext.init(null,new TrustManager[]{x509TrustManager},new SecureRandom());
+                setSslSocketFactory(sslContext.getSocketFactory());
+            }catch (Exception e){
+                e.printStackTrace();
+            }
+
+        }
+
         @Override
         public OkHttpClient setCookieHandler(CookieHandler cookieHandler)
         {
@@ -94,6 +140,7 @@ public class HttpUtil
 
 
     /**
+     * 忽略证书验证。
      * @param cookieHandler 为null时，表示使用默认的对象，并且不支持cookie。
      * @return
      */

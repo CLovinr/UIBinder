@@ -12,6 +12,7 @@ com\chenyg\uibinder\UISeeker.class
 com\chenyg\uibinder\j2se\BindJFrame$J2seBaseUI$1.class
 com\chenyg\uibinder\base\HttpUtil$1.class
 com\chenyg\uibinder\LangMap$CommonStr.class
+com\chenyg\uibinder\base\HttpUtil$OkHttpClientImpl$1.class
 com\chenyg\uibinder\android\xmlui\XmlUIPorter$6.class
 com\chenyg\uibinder\android\BinderActivity$AndroidBaseUI$8.class
 com\chenyg\uibinder\BinderFactory.class
@@ -38,6 +39,7 @@ com\chenyg\uibinder\j2se\J2seCLDialog.class
 com\chenyg\uibinder\UISeeker$NamesOccurStore$1$2.class
 com\chenyg\uibinder\android\AndroidC2LView.class
 com\chenyg\uibinder\j2se\binders\JTextComponentBinder.class
+com\chenyg\uibinder\base\HttpUtil$OkHttpClientImpl$2.class
 com\chenyg\uibinder\android\AndroidC2LDialog.class
 com\chenyg\uibinder\android\binders\EditTextBinder$2.class
 com\chenyg\uibinder\j2se\BindJFrame$J2seBaseUI$6.class
